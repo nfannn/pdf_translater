@@ -1,12 +1,16 @@
 
-PDF翻译：
+## PDF translate
 
 PDFwrite.py (需要提供spark_api)
 
 main.py
 
 
-网站后端:app.py
+# html_support:
+
+app.py
 
 
-网站前端:index.html
+# HTML:
+
+index.html
