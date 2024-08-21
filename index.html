@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Uploader and Translator</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+        }
+        #container {
+            display: flex;
+            flex-direction: column;
+            height: 90vh;
+            margin: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        #middleSection {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px;
+            background-color: #fff;
+            border-bottom: 1px solid #ddd;
+        }
+        #dropZone {
+            width: 80%;
+            height: 150px;
+            border: 2px dashed #007bff;
+            border-radius: 8px;
+            background-color: #e9f5ff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #007bff;
+            font-size: 18px;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        #content {
+            display: flex;
+            flex: 1;
+            padding: 15px;
+            height: calc(100% - 30px); /* Adjust height for content area */
+        }
+        #leftSection, #rightSection {
+            flex: 1;
+            box-sizing: border-box;
+            background-color: #fff;
+            position: relative;
+            overflow: hidden; /* Hide scrollbars */
+        }
+        #leftSection {
+            padding-right: 20px; /* Spacing between sections */
+        }
+        #rightSection {
+            padding-left: 20px; /* Spacing between sections */
+        }
+        #leftSection h2, #rightSection h2 {
+            font-size: 20px;
+            margin-bottom: 10px;
+            text-align: center;
+            color: #555;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            color: white;
+            background-color: #007bff; /* Blue */
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s, box-shadow 0.3s;
+            display: inline-block; /* Make buttons appear side by side */
+            margin-right: 10px; /* Space between buttons */
+        }
+        button:hover {
+            background-color: #0056b3; /* Darker blue */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
+            border-radius: 5px;
+            margin-bottom: 15px; /* Spacing below iframe */
+            /* Add these styles for scaling */
+            transform-origin: 0 0;
+            transform: scale(0.8); /* Adjust scale to fit content */
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="middleSection">
+            <div id="dropZone">拖放PDF文件到这里</div>
+            <input type="file" id="pdfInput" style="display: none;" />
+            <button id="selectFileButton">选择文件</button>
+        </div>
+        <div id="content">
+            <div id="leftSection">
+                <h2>Original PDF</h2>
+                <iframe id="pdfPreviewOriginal" src=""></iframe>
+            </div>
+            <div id="rightSection">
+                <h2>Translated PDF</h2>
+                <iframe id="pdfPreviewTranslated" src=""></iframe>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const pdfInput = document.getElementById('pdfInput');
+        const selectFileButton = document.getElementById('selectFileButton');
+        const pdfPreviewOriginal = document.getElementById('pdfPreviewOriginal');
+        const pdfPreviewTranslated = document.getElementById('pdfPreviewTranslated');
+        const dropZone = document.getElementById('dropZone');
+
+        selectFileButton.addEventListener('click', function() {
+            pdfInput.click(); // Trigger the file input click event
+        });
+
+        pdfInput.addEventListener('change', handleFileSelect);
+        dropZone.addEventListener('dragover', function(event) {
+            event.preventDefault();
+            dropZone.style.backgroundColor = '#cce5ff'; // Light blue on drag over
+        });
+
+        dropZone.addEventListener('dragleave', function() {
+            dropZone.style.backgroundColor = '#e9f5ff'; // Restore original color
+        });
+
+        dropZone.addEventListener('drop', function(event) {
+            event.preventDefault();
+            dropZone.style.backgroundColor = '#e9f5ff'; // Restore original color
+            const file = event.dataTransfer.files[0];
+            handleFileSelect({ target: { files: [file] } });
+        });
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            selectFileButton.disabled = true;
+
+            // Display the original PDF immediately
+            pdfPreviewOriginal.src = URL.createObjectURL(file);
+
+            // Initially, set the translated PDF src to an empty string
+            pdfPreviewTranslated.src = '';
+
+            // Handle file upload and processing
+            fetch('http://127.0.0.1:5000/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.filename) {
+                    // Automatically update the translated PDF src after translation
+                    pdfPreviewTranslated.src = 'static/output1.pdf'; // Update this with the actual translated PDF file path
+                } else {
+                    alert('Error processing file. Please try again.');
+                }
+                selectFileButton.disabled = false;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while uploading the file.');
+                selectFileButton.disabled = false;
+            });
+        }
+
+        // Scroll synchronization
+        function syncScroll() {
+            pdfPreviewTranslated.contentWindow.scrollTo({
+                top: pdfPreviewOriginal.contentWindow.scrollY,
+                left: pdfPreviewOriginal.contentWindow.scrollX
+            });
+        }
+
+        pdfPreviewOriginal.addEventListener('load', function() {
+            pdfPreviewOriginal.contentWindow.addEventListener('scroll', syncScroll);
+        });
+
+        pdfPreviewTranslated.addEventListener('load', function() {
+            pdfPreviewTranslated.contentWindow.addEventListener('scroll', syncScroll);
+        });
+
+        // Zoom synchronization
+        let scale = 1;
+        function syncZoom() {
+            pdfPreviewOriginal.style.transform = `scale(${scale})`;
+            pdfPreviewTranslated.style.transform = `scale(${scale})`;
+            pdfPreviewOriginal.style.transformOrigin = '0 0';
+            pdfPreviewTranslated.style.transformOrigin = '0 0';
+        }
+
+        function handleZoom(event) {
+            if (event.ctrlKey) {
+                event.preventDefault();
+                scale += event.deltaY * -0.01;
+                scale = Math.min(Math.max(0.5, scale), 2);
+                syncZoom();
+            }
+        }
+
+        pdfPreviewOriginal.addEventListener('wheel', handleZoom);
+        pdfPreviewTranslated.addEventListener('wheel', handleZoom);
+
+        syncZoom(); // Initialize zoom
+    </script>
+</body>
+</html>
